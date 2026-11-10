@@ -685,6 +685,8 @@ function buildL3(w) {
     });
   });
   w.fireOnExpire = true;
+  w.killsNeeded = 4;
+  w.checkWin = () => world.kills >= world.killsNeeded;
   w.objective = '🔥 Elimine os 4 Magos Renegados! Feitiços errados nas estantes incendeiam o chão.';
   w.player.x = 140; w.player.y = 330;
 }
