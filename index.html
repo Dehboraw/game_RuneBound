@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>RuneBound: The Ascendant</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:100%; height:100%; overflow:hidden; background:#05060c; font-family:'Trebuchet MS','Segoe UI',sans-serif; }
+  #game { position:fixed; inset:0; display:block; }
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; top:10px; left:12px; z-index:5; user-select:none; color:#fff; }
+  #hpOuter { width:250px; height:22px; background:#1a1114cc; border:2px solid #c9a227; border-radius:5px; overflow:hidden; }
+  #hp { height:100%; width:100%; background:linear-gradient(#e74c3c,#92271c); transition:width .12s; }
+  #dashOuter { width:250px; height:7px; background:#1a1114cc; border-radius:4px; margin-top:4px; border:1px solid #455; }
+  #dash { height:100%; width:100%; background:#5bc8f5; transition:width .1s; }
+  #stats { margin-top:5px; font-size:14px; text-shadow:1px 2px 3px #000; }
+  #objective { margin-top:3px; font-size:13px; color:#ffd76e; text-shadow:1px 2px 3px #000; }
+  #keys { margin-top:4px; font-size:18px; letter-spacing:3px; color:#ffd700; text-shadow:0 0 8px #a08000; }
+  #levelTitle { position:fixed; top:10px; right:14px; color:#ffd76e; font-size:15px; text-align:right;
+                text-shadow:1px 2px 3px #000; z-index:5; }
+  #timer { color:#ff7d7d; font-size:15px; text-shadow:0 0 8px #500; }
+  #bossbar { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); width:460px; display:none; z-index:5; }
+  #bossbar .label { text-align:center; color:#ff9b9b; font-size:13px; letter-spacing:2px; text-shadow:0 0 6px #500; margin-bottom:3px; }
+  #bossOuter { height:16px; background:#150a0a; border:2px solid #7a1f2b; border-radius:5px; }
+  #bossHP { height:100%; width:100%; background:linear-gradient(#b12a3a,#5c0f18); transition:width .15s; }
+  #phaseMsg { position:fixed; top:26%; width:100%; text-align:center; font-size:30px; color:#ff5b5b;
+              text-shadow:0 0 16px #800, 2px 2px 4px #000; z-index:6; pointer-events:none; opacity:0; transition:opacity .35s; }
+  /* ---------- Telas ---------- */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+            background:radial-gradient(ellipse at 50% 30%, #17203a 0%, #05060c 75%); color:#fff; text-align:center; z-index:10; }
+  .screen.hidden { display:none !important; }
+  .screen h1 { font-size:44px; margin-bottom:6px; color:#ffd76e; text-shadow:0 0 24px #8a6400, 2px 2px 4px #000; letter-spacing:1px; }
+  .screen h2 { font-size:18px; color:#cfd8ea; margin-bottom:16px; font-weight:normal; }
+  .chars { display:flex; gap:26px; margin:10px 0 4px; }
+  .charCard { width:230px; padding:16px 14px; background:#101728; border:2px solid #3a4a66; border-radius:12px;
+              cursor:pointer; transition:transform .15s, border-color .15s, box-shadow .15s; }
+  .charCard:hover { transform:translateY(-4px); border-color:#c9a227; box-shadow:0 8px 30px rgba(201,162,39,.25); }
+  .charCard.sel { border-color:#ffd76e; box-shadow:0 0 24px rgba(255,215,110,.35), inset 0 0 18px rgba(255,215,110,.08); }
+  .charCard h3 { color:#ffd76e; font-size:19px; margin-top:8px; }
+  .charCard p { font-size:13px; color:#aebccd; margin-top:6px; line-height:1.45; }
+  .charCard canvas { display:block; margin:0 auto; }
+  .stat { display:inline-block; margin:2px 3px; font-size:11px; padding:2px 8px; border:1px solid #3a4a66; border-radius:10px; color:#9fb4cc; }
+  .screen .controls { margin-top:14px; font-size:13.5px; color:#8fa0b8; }
+  .screen button.go { margin-top:16px; padding:12px 44px; font-size:18px; cursor:pointer;
+            background:linear-gradient(#5a420e,#3a2b08); color:#ffd76e; border:2px solid #c9a227; border-radius:8px;
+            box-shadow:0 4px 16px rgba(0,0,0,.5); }
+  .screen button.go:hover { background:linear-gradient(#7a5c1a,#4a370c); }
+  .screen p.small { font-size:13px; color:#8fa0b8; max-width:640px; line-height:1.5; margin-top:4px; }
+  #endTitle.win { color:#8fe38f; text-shadow:0 0 24px #2a7a2a; }
+  .kbd { display:inline-block; background:#1c2740; border:1px solid #4660a0; border-radius:4px; padding:1px 7px; color:#cfe0ff; font-size:12px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="hpOuter"><div id="hp"></div></div>
+  <div id="dashOuter"><div id="dash"></div></div>
+  <div id="stats">HP: 100 &nbsp;|&nbsp; Abates: 0</div>
+  <div id="objective">Objetivo</div>
+  <div id="keys" style="display:none"></div>
+</div>
+<div id="levelTitle">🏰 RuneBound<div id="timer"></div></div>
+<div id="bossbar"><div class="label">☣ NECROMANTE — SENHOR DO ECLIPSE</div><div id="bossOuter"><div id="bossHP"></div></div></div>
+<div id="phaseMsg"></div>
+
+<!-- Tela inicial: escolha de personagem -->
+<div id="startScreen" class="screen">
+  <h1>⚡ RuneBound: The Ascendant</h1>
+  <h2>Suba a torre ancestral e detenha o ritual do Eclipse</h2>
+  <div class="chars">
+    <div class="charCard" data-char="knight">
+      <canvas width="120" height="140"></canvas>
+      <h3>⚔ Cavaleiro Solitário</h3>
+      <div>
+        <span class="stat">Vida ★★★☆☆</span><span class="stat">Velocidade ★★★☆☆</span><span class="stat">Golpe ★★★★☆</span>
+      </div>
+      <p>Golpes largos de espada em área. Dano forte, alcance generoso.</p>
+    </div>
+    <div class="charCard" data-char="guard">
+      <canvas width="120" height="140"></canvas>
+      <h3>🛡 Guarda Real</h3>
+      <div>
+        <span class="stat">Vida ★★★★☆</span><span class="stat">Velocidade ★★★★☆</span><span class="stat">Golpe ★★★☆☆</span>
+      </div>
+      <p>Estoque rápido e investida veloz. Mais resistente e ágil.</p>
+    </div>
+  </div>
+  <div class="controls">
+    <span class="kbd">W A S D</span> / <span class="kbd">Setas</span> mover &nbsp;•&nbsp;
+    <span class="kbd">Mouse</span>/<span class="kbd">Espaço</span> atacar &nbsp;•&nbsp;
+    <span class="kbd">Shift</span> investida
+  </div>
+  <button class="go" id="startBtn">⚔ Iniciar a Ascensão</button>
+</div>
+
+<div id="interScreen" class="screen hidden">
+  <h1 id="interTitle">Andar concluído!</h1>
+  <p class="small" id="interText"></p>
+  <button class="go" id="interBtn">Subir ➜ Próximo Andar</button>
+</div>
+
+<div id="endScreen" class="screen hidden">
+  <h1 id="endTitle"></h1>
+  <p class="small" id="endText"></p>
+  <button class="go" id="endBtn">Tentar Novamente</button>
+</div>
+
+<script src="src/main.js"></script>
+</body>
+</html>
